@@ -947,12 +947,21 @@
     }
   }
 
-  // -----------------------------
-  // Chart load/save
-  // -----------------------------
 // -----------------------------
 // Chart load/save
 // -----------------------------
+
+function defaultChartFor(song){
+  return {
+    version: 1,
+    songId: song.id,
+    audio: song.audio,
+    offsetMs: song.offsetMs,
+    scrollMs: song.scrollMs,
+    bpm: song.bpm,
+    notes: []
+  };
+}
 
 // ✅ GitHub Pages 배포용: 곡별 고정 채보(JSON) 로드 (상위 스코프에 있어야 함)
 async function loadChartFromFile(song){
@@ -969,96 +978,94 @@ async function loadChartFromFile(song){
   applyChartToUI();
 }
 
-function defaultChartFor(song){
-  return {
-    version: 1,
-    songId: song.id,
-    ...
-  };
+function storageKey(songId){ return `rhythm_chart_${songId}`; }
+function storageSettingsKey(songId){ return `rhythm_settings_${songId}`; }
+
+function saveToLocal(){
+  if(!chart) return;
+  localStorage.setItem(storageKey(chart.songId), JSON.stringify(chart));
+  localStorage.setItem(storageSettingsKey(chart.songId), JSON.stringify({
+    bpm: chart.bpm,
+    offsetMs: chart.offsetMs,
+    scrollMs: chart.scrollMs
+  }));
+  toast(`저장 완료: ${currentSong.name}`);
 }
 
+function loadFromLocal(){
+  const raw = localStorage.getItem(storageKey(currentSong.id));
+  const rawSet = localStorage.getItem(storageSettingsKey(currentSong.id));
 
-
-  function storageKey(songId){ return `rhythm_chart_${songId}`; }
-  function storageSettingsKey(songId){ return `rhythm_settings_${songId}`; }
-
-  function saveToLocal(){
-    if(!chart) return;
-    localStorage.setItem(storageKey(chart.songId), JSON.stringify(chart));
-    localStorage.setItem(storageSettingsKey(chart.songId), JSON.stringify({
-      bpm: chart.bpm,
-      offsetMs: chart.offsetMs,
-      scrollMs: chart.scrollMs
-    }));
-    toast(`저장 완료: ${currentSong.name}`);
-  }
-
-  function loadFromLocal(){
-    const raw = localStorage.getItem(storageKey(currentSong.id));
-    const rawSet = localStorage.getItem(storageSettingsKey(currentSong.id));
-    if(raw){
-      try{
-        const obj = JSON.parse(raw);
-        chart = normalizeChart(obj, currentSong);
-        window.chart = chart;
-        applyChartToUI();
-        toast(`불러오기 완료: ${currentSong.name}`);
-        return;
-      }catch(e){}
+  if(raw){
+    try{
+      const obj = JSON.parse(raw);
+      chart = normalizeChart(obj, currentSong);
+      window.chart = chart;
+      applyChartToUI();
+      toast(`불러오기 완료: ${currentSong.name}`);
+      return;
+    }catch(e){
+      // fallthrough
     }
-    if(rawSet){
-      try{
-        const s = JSON.parse(rawSet);
-        currentSong.bpm = Number(s.bpm) || currentSong.bpm;
-        currentSong.offsetMs = Number(s.offsetMs) || currentSong.offsetMs;
-        currentSong.scrollMs = Number(s.scrollMs) || currentSong.scrollMs;
-      }catch(e){}
+  }
+
+  if(rawSet){
+    try{
+      const s = JSON.parse(rawSet);
+      currentSong.bpm = Number(s.bpm) || currentSong.bpm;
+      currentSong.offsetMs = Number(s.offsetMs) || currentSong.offsetMs;
+      currentSong.scrollMs = Number(s.scrollMs) || currentSong.scrollMs;
+    }catch(e){
+      // ignore
     }
-    chart = defaultChartFor(currentSong);
-    applyChartToUI();
-    toast(`저장된 채보 없음: 기본값 로드`);
   }
 
-  // ✅ tap-only normalize: 기존 hold/type/dur가 있어도 전부 무시
-  function normalizeChart(obj, song){
-    const safe = defaultChartFor(song);
-    safe.version = obj.version ?? safe.version;
-    safe.songId = song.id;
-    safe.audio = song.audio;
-    safe.offsetMs = Number(obj.offsetMs ?? song.offsetMs) || 0;
-    safe.scrollMs = Number(obj.scrollMs ?? song.scrollMs) || 1700;
-    safe.bpm = Number(obj.bpm ?? song.bpm) || song.bpm;
+  chart = defaultChartFor(currentSong);
+  applyChartToUI();
+  toast(`저장된 채보 없음: 기본값 로드`);
+}
 
-    safe.notes = Array.isArray(obj.notes) ? obj.notes
-      .filter(n => Number.isFinite(n.t) && Number.isFinite(n.lane))
-      .map(n => ({
-        t: Math.max(0, Math.round(n.t)),
-        lane: Math.max(0, Math.min(3, Math.round(n.lane)))
-      }))
-      .sort((a,b)=>a.t-b.t || a.lane-b.lane)
-      : [];
+// ✅ tap-only normalize: 기존 hold/type/dur가 있어도 전부 무시
+function normalizeChart(obj, song){
+  const safe = defaultChartFor(song);
+  safe.version = obj.version ?? safe.version;
+  safe.songId = song.id;
+  safe.audio = song.audio;
+  safe.offsetMs = Number(obj.offsetMs ?? song.offsetMs) || 0;
+  safe.scrollMs = Number(obj.scrollMs ?? song.scrollMs) || 1700;
+  safe.bpm = Number(obj.bpm ?? song.bpm) || song.bpm;
 
-    safe.notes.forEach(n => {
-      delete n._hit;
-      delete n._hitStart;
-      delete n._holding;
-      delete n._releaseT;
-    });
+  safe.notes = Array.isArray(obj.notes) ? obj.notes
+    .filter(n => Number.isFinite(n.t) && Number.isFinite(n.lane))
+    .map(n => ({
+      t: Math.max(0, Math.round(n.t)),
+      lane: Math.max(0, Math.min(3, Math.round(n.lane)))
+    }))
+    .sort((a,b)=>a.t-b.t || a.lane-b.lane)
+    : [];
 
-    return safe;
-  }
+  safe.notes.forEach(n => {
+    delete n._hit;
+    delete n._hitStart;
+    delete n._holding;
+    delete n._releaseT;
+  });
 
-  function applyChartToUI(){
-    setBackground(currentSong.bg);
-    audioEl.src = currentSong.audio;
+  return safe;
+}
 
-    bpmInput.value = chart.bpm;
-    offsetInput.value = chart.offsetMs;
-    scrollInput.value = chart.scrollMs;
+function applyChartToUI(){
+  setBackground(currentSong.bg);
+  audioEl.src = currentSong.audio;
 
-    chartBox.value = JSON.stringify(chart, null, 2);
-    updateHUD();
-  }
+  bpmInput.value = chart.bpm;
+  offsetInput.value = chart.offsetMs;
+  scrollInput.value = chart.scrollMs;
+
+  chartBox.value = JSON.stringify(chart, null, 2);
+  updateHUD();
+}
+
 
   // -----------------------------
   // Toast
@@ -1814,5 +1821,6 @@ function defaultChartFor(song){
 </script>
 </body>
 </html>
+
 
 
