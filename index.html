@@ -950,17 +950,34 @@
   // -----------------------------
   // Chart load/save
   // -----------------------------
-  function defaultChartFor(song){
-    return {
-      version: 1,
-      songId: song.id,
-      audio: song.audio,
-      offsetMs: song.offsetMs,
-      scrollMs: song.scrollMs,
-      bpm: song.bpm,
-      notes: []
-    };
+// -----------------------------
+// Chart load/save
+// -----------------------------
+
+// ✅ GitHub Pages 배포용: 곡별 고정 채보(JSON) 로드 (상위 스코프에 있어야 함)
+async function loadChartFromFile(song){
+  const url = new URL(`charts/${song.id}.json`, window.location.href);
+  const res = await fetch(url, { cache: "no-store" });
+
+  if(!res.ok){
+    throw new Error(`chart fetch failed: ${res.status} ${res.statusText} / ${url}`);
   }
+
+  const obj = await res.json();
+  chart = normalizeChart(obj, song);
+  window.chart = chart;
+  applyChartToUI();
+}
+
+function defaultChartFor(song){
+  return {
+    version: 1,
+    songId: song.id,
+    ...
+  };
+}
+
+
 
   function storageKey(songId){ return `rhythm_chart_${songId}`; }
   function storageSettingsKey(songId){ return `rhythm_settings_${songId}`; }
@@ -983,15 +1000,6 @@
       try{
         const obj = JSON.parse(raw);
         chart = normalizeChart(obj, currentSong);
-          // ✅ GitHub Pages 배포용: 곡별 고정 채보(JSON) 로드
-  async function loadChartFromFile(song){
-    const res = await fetch(`charts/${song.id}.json`, { cache: "no-store" });
-    if(!res.ok) throw new Error("chart file not found");
-    const obj = await res.json();
-    chart = normalizeChart(obj, song);
-    window.chart = chart;
-    applyChartToUI();
-  }
         window.chart = chart;
         applyChartToUI();
         toast(`불러오기 완료: ${currentSong.name}`);
@@ -1806,4 +1814,5 @@
 </script>
 </body>
 </html>
+
 
