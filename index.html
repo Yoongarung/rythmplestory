@@ -665,7 +665,7 @@
   </div>
 
 <script>
-(() => {
+(async() => {
   // -----------------------------
   // Songs
   // -----------------------------
@@ -983,6 +983,15 @@
       try{
         const obj = JSON.parse(raw);
         chart = normalizeChart(obj, currentSong);
+          // ✅ GitHub Pages 배포용: 곡별 고정 채보(JSON) 로드
+  async function loadChartFromFile(song){
+    const res = await fetch(`charts/${song.id}.json`, { cache: "no-store" });
+    if(!res.ok) throw new Error("chart file not found");
+    const obj = await res.json();
+    chart = normalizeChart(obj, song);
+    window.chart = chart;
+    applyChartToUI();
+  }
         window.chart = chart;
         applyChartToUI();
         toast(`불러오기 완료: ${currentSong.name}`);
@@ -1661,17 +1670,26 @@
     songSelect.value = currentSong.id;
   }
 
-  function setSongById(id){
+    async function setSongById(id){
     const s = SONGS.find(x => x.id === id) || SONGS[0];
     currentSong = s;
     setBackground(s.bg);
     audioEl.src = s.audio;
-    loadFromLocal();
+
+    try{
+      await loadChartFromFile(currentSong);
+      toast(`채보 로드: ${currentSong.name}`);
+    }catch(e){
+      console.error(e);
+      chart = defaultChartFor(currentSong);
+      applyChartToUI();
+      toast("채보 파일을 찾지 못했어요 (charts 폴더/파일명 확인)");
+    }
   }
 
-  songSelect.addEventListener("change", () => {
+    songSelect.addEventListener("change", async () => {
     stopGame(false);
-    setSongById(songSelect.value);
+    await setSongById(songSelect.value);
   });
 
   startBtn.addEventListener("click", () => startGame());
@@ -1775,10 +1793,17 @@
   });
 
   initSongSelect();
-  setSongById(currentSong.id);
+  await setSongById(currentSong.id);
+    // ✅ 배포용: 채보 편집 UI 숨김(원하면 주석 처리해서 다시 켤 수 있음)
+  genBtn.style.display = "none";
+  saveBtn.style.display = "none";
+  loadBtn.style.display = "none";
+  exportBtn.style.display = "none";
+  chartBox.style.display = "none";
   showCountdown(false);
 
 })();
 </script>
 </body>
 </html>
+
