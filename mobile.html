@@ -2,15 +2,11 @@
 <html lang="ko">
 <head>
   <meta charset="utf-8" />
-  <!-- 모바일 세로모드 최적화 -->
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
   <title>4키 리듬게임 (Mobile)</title>
 
   <style>
     :root{
-      /* ✅ hitY는 JS가 'px'로 주입 (문자열 vh 금지) */
-      --hitY: 520px;
-
       --glass: rgba(10,12,16,.62);
       --text: rgba(255,255,255,.92);
       --muted: rgba(255,255,255,.65);
@@ -20,12 +16,20 @@
       --warn: rgba(255, 216, 120, .95);
       --bad: rgba(255, 120, 120, .95);
 
-      --noteH: 34px;
       --laneGap: 10px;
 
-      --padH: 140px;
+      /* ✅ 모바일 가시성: 노트를 크게 */
+      --noteH: 34px;
+
+      /* ✅ 터치패드 */
+      --padH: 150px;
+      --padRadius: 18px;
+
+      /* ✅ 판정 윈도우(패드 발광) 크기 */
+      --hitGlowH: 90px;      /* 패드 상단으로부터 발광 높이 */
+      --hitGlowOpacity: .9;  /* 기본 발광 강도 */
+
       --miniHUDH: 44px;
-      --hitBandH: 34px;
     }
 
     *{ box-sizing:border-box; }
@@ -71,8 +75,8 @@
       background: linear-gradient(to bottom, rgba(0,0,0,.62), rgba(0,0,0,.12));
       border-bottom: 1px solid rgba(255,255,255,.08);
     }
-
     .left, .right{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+
     .badge{
       background: rgba(0,0,0,.35);
       border: 1px solid rgba(255,255,255,.12);
@@ -138,6 +142,7 @@
       gap: var(--laneGap);
       padding: 14px 12px 0;
       pointer-events:none;
+      z-index: 5;
     }
     .lane{
       flex: 1 1 0;
@@ -149,7 +154,6 @@
       overflow:hidden;
       border-radius: 10px;
     }
-
     .lane::after{
       content:"";
       position:absolute;
@@ -170,49 +174,20 @@
     }
     .lane.lit::after{ opacity: .75; }
 
-    /* ✅ 히트라인 = 터치패드 윗변 */
-    .hitLine{
-      position:absolute;
-      left: 0; right: 0;
-      top: var(--hitY);
-      height: 3px;
-      background: rgba(255,255,255,.24);
-      box-shadow:
-        0 0 0 1px rgba(0,0,0,.3),
-        0 0 30px rgba(120,220,255,.35);
-      z-index: 6;
-      pointer-events:none;
-    }
-
-    /* ✅ 히트밴드(가이드) */
-    .hitBand{
-      position:absolute;
-      left:0; right:0;
-      top: calc(var(--hitY) - (var(--hitBandH) / 2));
-      height: var(--hitBandH);
-      background: linear-gradient(to bottom,
-        rgba(120,220,255,.00),
-        rgba(120,220,255,.14),
-        rgba(120,220,255,.00)
-      );
-      border-top: 1px solid rgba(255,255,255,.12);
-      border-bottom: 1px solid rgba(255,255,255,.10);
-      pointer-events:none;
-      z-index: 5;
-    }
-
+    /* ✅ 노트 */
     .note{
       position:absolute;
       height: var(--noteH);
-      border-radius: 10px;
-      background: rgba(255,255,255,.90);
+      border-radius: 12px;
+      background: rgba(255,255,255,.92);
       box-shadow: 0 10px 24px rgba(0,0,0,.30);
-      opacity:.97;
-      z-index: 8;
+      opacity:.98;
+      z-index: 10;
       transition: filter .06s ease, transform .06s ease, opacity .12s ease, background .08s ease;
       will-change: transform, opacity, filter;
     }
     .note.chord{ background: rgba(120,220,255,.92); }
+
     .note.inWindow{
       background: rgba(120,220,255,.95);
       filter: brightness(1.12);
@@ -236,7 +211,7 @@
       align-items:center;
       justify-content:center;
       pointer-events:none;
-      z-index: 20;
+      z-index: 30;
     }
     .judgeBox{
       transform: translateY(-30px);
@@ -287,17 +262,17 @@
       transform: scale(.95);
       transition: opacity .12s ease, transform .12s ease;
       pointer-events:none;
-      z-index: 22;
+      z-index: 32;
     }
     .countdown.show{ opacity: 1; transform: scale(1); }
 
-    /* ✅ 하단 미니 HUD: 맨 아래 */
+    /* ✅ 하단 미니 HUD */
     .miniHUD{
       position:absolute;
       left:12px;
       right:12px;
       bottom: calc(10px + env(safe-area-inset-bottom));
-      z-index: 18;
+      z-index: 25;
       display:flex;
       justify-content:space-between;
       gap:8px;
@@ -320,7 +295,7 @@
     }
     .mono{ font-variant-numeric: tabular-nums; font-feature-settings:"tnum"; }
 
-    /* ✅ 히트박스 = 터치패드(레인별) : 밑에 크게 */
+    /* ✅ 터치패드: 히트박스처럼 빛나는 표현 */
     .touchLayer{
       position:absolute;
       left:0; right:0;
@@ -328,7 +303,7 @@
       padding: 0 12px;
       display:flex;
       gap: var(--laneGap);
-      z-index: 16;
+      z-index: 20;
       touch-action: none;
       user-select:none;
       -webkit-user-select:none;
@@ -337,25 +312,62 @@
     .touchPad{
       flex: 1 1 0;
       height: var(--padH);
-      border-radius: 18px;
+      border-radius: var(--padRadius);
       background: rgba(255,255,255,.05);
       border: 1px solid rgba(255,255,255,.12);
       box-shadow:
         inset 0 0 0 1px rgba(0,0,0,.18),
         inset 0 -80px 140px rgba(0,0,0,.18);
+      position:relative;
+      overflow:hidden;
     }
+
+    /* ✅ “패드 전체가 히트박스” 느낌: 상단 히트존 글로우 */
+    .touchPad::before{
+      content:"";
+      position:absolute;
+      left:0; right:0;
+      top:0;
+      height: var(--hitGlowH);
+      opacity: var(--hitGlowOpacity);
+      background:
+        radial-gradient(120% 120% at 50% 0%,
+          rgba(120,220,255,.28),
+          rgba(120,220,255,.16) 45%,
+          rgba(120,220,255,.00) 75%),
+        linear-gradient(to bottom,
+          rgba(120,220,255,.18),
+          rgba(120,220,255,.08) 55%,
+          rgba(120,220,255,.00));
+      pointer-events:none;
+      transition: opacity .08s ease, filter .08s ease;
+      filter: saturate(1.2) brightness(1.05);
+    }
+
+    /* ✅ 입력중 더 강한 발광 */
     .touchPad.active{
-      background: rgba(120,220,255,.12);
-      border-color: rgba(120,220,255,.40);
+      border-color: rgba(120,220,255,.45);
+      background: rgba(120,220,255,.10);
       box-shadow:
         inset 0 0 0 1px rgba(120,220,255,.20),
         0 0 30px rgba(120,220,255,.18);
     }
+    .touchPad.active::before{
+      opacity: 1;
+      filter: saturate(1.4) brightness(1.12);
+    }
+
+    /* ✅ 노트가 판정 윈도우에 들어오면 해당 패드가 “자동으로” 더 빛나게 (JS에서 pad.inWindow 토글) */
+    .touchPad.inWindow::before{
+      opacity: 1;
+      filter: saturate(1.5) brightness(1.18);
+    }
+
     .touchLabelRow{
       position:absolute;
       left:12px; right:12px;
       bottom: calc(10px + env(safe-area-inset-bottom) + var(--miniHUDH) + 8px + 10px);
-      z-index: 17;
+      z-index: 21;
       display:flex;
       gap: var(--laneGap);
       pointer-events:none;
@@ -371,12 +383,12 @@
     }
 
     /* -----------------------------
-       Result Modal (웹버전처럼)
+       Result Modal
        ----------------------------- */
     .modal{
       position:absolute;
       inset:0;
-      z-index: 50;
+      z-index: 60;
       display:none;
       align-items:center;
       justify-content:center;
@@ -452,6 +464,7 @@
       margin-top: 8px;
       font-size: 14px;
       color: rgba(255,255,255,.78);
+      line-height: 1.35;
     }
     .kvs{
       margin-top: 10px;
@@ -474,6 +487,24 @@
       justify-content:flex-end;
       gap: 10px;
     }
+
+    /* ✅ 디버그 오버레이(뻑나면 화면에 에러 띄움) */
+    .debug{
+      position:absolute;
+      left:10px; right:10px;
+      top: calc(10px + env(safe-area-inset-top));
+      z-index: 100;
+      padding: 10px 12px;
+      border-radius: 12px;
+      background: rgba(255, 80, 80, .14);
+      border: 1px solid rgba(255, 120, 120, .30);
+      backdrop-filter: blur(8px);
+      display:none;
+      white-space: pre-wrap;
+      font-size: 12px;
+      color: rgba(255,255,255,.92);
+    }
+    .debug.show{ display:block; }
   </style>
 </head>
 
@@ -501,9 +532,6 @@
           <div class="lane"></div>
         </div>
 
-        <div class="hitBand"></div>
-        <div class="hitLine"></div>
-
         <div class="centerUI">
           <div class="judgeBox">
             <div class="judgeText" id="judgeText">Perfect</div>
@@ -513,7 +541,6 @@
 
         <div class="countdown" id="countdown">3</div>
 
-        <!-- ✅ 터치 라벨(직관) -->
         <div class="touchLabelRow">
           <div class="touchLabel">D</div>
           <div class="touchLabel">F</div>
@@ -521,7 +548,6 @@
           <div class="touchLabel">K</div>
         </div>
 
-        <!-- ✅ 히트박스 = 터치패드 -->
         <div class="touchLayer" id="touchLayer">
           <div class="touchPad" data-lane="0"></div>
           <div class="touchPad" data-lane="1"></div>
@@ -529,7 +555,6 @@
           <div class="touchPad" data-lane="3"></div>
         </div>
 
-        <!-- ✅ 하단 정보: 맥스 콤보 표기 -->
         <div class="miniHUD">
           <div class="pill mono"><span>점수</span><strong id="scoreText">0</strong></div>
           <div class="pill mono"><span>맥스 콤보</span><strong id="maxComboText">0</strong></div>
@@ -540,7 +565,6 @@
       </div>
     </div>
 
-    <!-- ✅ 결과 모달 -->
     <div class="modal" id="modal">
       <div class="backdrop"></div>
       <div class="panel">
@@ -559,10 +583,28 @@
       </div>
     </div>
 
+    <div class="debug" id="debug"></div>
   </div>
 
 <script>
 (async() => {
+  // -----------------------------
+  // Debug overlay: "뻑남" 원인을 화면에 보여주기
+  // -----------------------------
+  const debugEl = document.getElementById("debug");
+  function showDebug(msg){
+    if(!debugEl) return;
+    debugEl.textContent = msg;
+    debugEl.classList.add("show");
+  }
+  window.addEventListener("error", (e) => {
+    showDebug(`JS ERROR:\n${e.message}\n${e.filename}:${e.lineno}:${e.colno}`);
+  });
+  window.addEventListener("unhandledrejection", (e) => {
+    const m = (e.reason && (e.reason.stack || e.reason.message)) ? (e.reason.stack || e.reason.message) : String(e.reason);
+    showDebug(`PROMISE ERROR:\n${m}`);
+  });
+
   // -----------------------------
   // Songs
   // -----------------------------
@@ -596,7 +638,6 @@
   const touchLayer = document.getElementById("touchLayer");
   const touchPads = touchLayer ? Array.from(touchLayer.querySelectorAll(".touchPad")) : [];
 
-  // Modal
   const modal = document.getElementById("modal");
   const modalBody = document.getElementById("modalBody");
   const closeModalBtn = document.getElementById("closeModalBtn");
@@ -604,22 +645,29 @@
   const backToMenuBtn = document.getElementById("backToMenuBtn");
   const tabEls = Array.from(document.querySelectorAll(".tab"));
 
+  if(!laneBoard || !lanesEl || !audioEl || !touchLayer){
+    showDebug("DOM이 일부 없습니다. mobile.html 구조가 깨졌는지 확인해줘요.");
+    return;
+  }
+
   // -----------------------------
   // State
   // -----------------------------
   let currentSong = SONGS[0];
-
   let chart = null;
   window.chart = null;
 
   let running = false;
   let rafId = 0;
-
   let preRolling = false;
   let goPerf = 0;
 
-  let audioStarted = false;  // ✅ “시작하자마자 멈춤” 방지용
-  let audioStartPerf = 0;   // ✅ 실제 재생 시작 시각(Perf)
+  // ✅ “시작하자마자 멈춤” 방지 플래그
+  let audioStarted = false;
+  let audioStartPerf = 0;
+
+  // ✅ 패드 히트존(판정 기준 Y): 패드 상단 ~ hitGlowH 영역 중간
+  let hitYpx = 520;
 
   const notePool = [];
   const activeNotesDOM = new Map();
@@ -672,7 +720,7 @@
 
   function updateHUD(){
     scoreTextEl.textContent = fmt(stats.score);
-    maxComboTextEl.textContent = String(stats.maxCombo); // ✅ 맥스 콤보
+    maxComboTextEl.textContent = String(stats.maxCombo);
     const acc = stats.total > 0 ? (stats.hit / stats.total) : 0;
     accTextEl.textContent = stats.total ? `${(acc*100).toFixed(1)}%` : "—";
   }
@@ -706,19 +754,8 @@
 
   function nowMs(){
     if(!running) return 0;
-    if(preRolling){
-      return (performance.now() - goPerf);
-    }
+    if(preRolling) return (performance.now() - goPerf);
     return (audioEl.currentTime * 1000);
-  }
-
-  // ✅ 히트라인(=패드 top)까지 내려오는 방식
-  function chartTimeToScreenY(noteTms, currentTms){
-    const dt = noteTms - currentTms;
-    const progress = 1 - (dt / chart.scrollMs);
-    const yStart = -50;
-    const yEnd = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--hitY")); // px
-    return yStart + (yEnd - yStart) * progress;
   }
 
   function laneGeom(){
@@ -730,7 +767,6 @@
     const boardW = laneBoard.clientWidth;
     const innerW = boardW - padL - padR;
     const w = (innerW - gap*3) / 4;
-
     return { padL, gap, w };
   }
 
@@ -747,7 +783,32 @@
   }
 
   // -----------------------------
-  // Vibration (Haptics)
+  // ✅ Hitbox: "패드 상단 히트존"을 기준으로 노트가 내려오게
+  // -----------------------------
+  function updateHitbox(){
+    // 레이아웃이 아직 0일 수 있어서 방어
+    const top = touchLayer.offsetTop;
+    const h = touchLayer.clientHeight || parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--padH")) || 150;
+
+    // 히트존(발광) 높이의 "중앙"을 판정 기준으로 잡기
+    const glowH = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--hitGlowH")) || 90;
+    const hitCenterFromTop = Math.min(glowH * 0.55, h * 0.55);
+
+    if(top && top > 20){
+      hitYpx = top + hitCenterFromTop;
+    }
+  }
+
+  function chartTimeToScreenY(noteTms, currentTms){
+    const dt = noteTms - currentTms;
+    const progress = 1 - (dt / chart.scrollMs);
+    const yStart = -60;
+    const yEnd = hitYpx;
+    return yStart + (yEnd - yStart) * progress;
+  }
+
+  // -----------------------------
+  // Vibration
   // -----------------------------
   let lastVibeAt = 0;
   function vibe(pattern){
@@ -785,7 +846,7 @@
   }
 
   // -----------------------------
-  // Result Modal
+  // Modal
   // -----------------------------
   function openModal(tab="result"){
     modal.classList.add("show");
@@ -812,8 +873,10 @@
       modalBody.innerHTML = `
         <div class="block">
           <p class="gradeBig">${grade}</p>
-          <div class="subInfo">정확도 <strong>${(acc*100).toFixed(1)}%</strong><br>
-Max Combo <strong>${stats.maxCombo}</strong></div>
+          <div class="subInfo">
+            정확도 <strong>${(acc*100).toFixed(1)}%</strong><br>
+            Max Combo <strong>${stats.maxCombo}</strong>
+          </div>
           <div class="scoreSmall mono">${fmt(score)}</div>
           <div class="kvs">
             <div><span>노트 수</span><strong class="mono">${stats.total}</strong></div>
@@ -836,7 +899,7 @@ Max Combo <strong>${stats.maxCombo}</strong></div>
           <div class="kvs">
             <div><span>점수</span><strong>Perfect 1000 / Great 700 / Good 400</strong></div>
             <div><span>콤보</span><strong>combo × 0.4 (최대 1.4배)</strong></div>
-            <div><span>모바일</span><strong>히트라인 = 패드 상단</strong></div>
+            <div><span>모바일</span><strong>패드 상단 히트존 발광</strong></div>
           </div>
         </div>
       `;
@@ -880,13 +943,6 @@ Max Combo <strong>${stats.maxCombo}</strong></div>
     return safe;
   }
 
-  function applyChartToUI(){
-    setBackground(currentSong.bg);
-    audioEl.src = currentSong.audio;
-    audioEl.load(); // ✅ 미리 로드해서 “처음 시작하면 멈춤” 케이스 줄이기
-    updateHUD();
-  }
-
   async function loadChartFromFile(song){
     const url = new URL(`charts/${song.id}.json`, window.location.href);
     const res = await fetch(url, { cache: "no-store" });
@@ -894,7 +950,12 @@ Max Combo <strong>${stats.maxCombo}</strong></div>
     const obj = await res.json();
     chart = normalizeChart(obj, song);
     window.chart = chart;
-    applyChartToUI();
+  }
+
+  function applySongToUI(){
+    setBackground(currentSong.bg);
+    audioEl.src = currentSong.audio;
+    audioEl.load();
   }
 
   // -----------------------------
@@ -908,20 +969,6 @@ Max Combo <strong>${stats.maxCombo}</strong></div>
     judgeTextEl.classList.add("show");
     toastTimer = setTimeout(()=>judgeTextEl.classList.remove("show"), 900);
   }
-
-  // -----------------------------
-  // ✅ Layout: hitLine = touchPad top
-  // -----------------------------
-  function updateMobileLayout(){
-    // touchLayer의 top이 곧 히트라인 위치(패드 상단)
-    if(!touchLayer) return;
-
-    // 화면 로딩 직후 레이아웃이 아직 0일 수 있어 한 번 더 예약
-    const padTop = touchLayer.offsetTop;
-const padH = touchLayer.clientHeight;          // ✅ 패드 높이(레이아웃 실제 값)
-const hitY = padTop + (padH * 0.5);            // ✅ 패드 중앙을 히트라인으로
-document.documentElement.style.setProperty("--hitY", `${Math.round(hitY)}px`);
-
 
   // -----------------------------
   // Gameplay
@@ -940,7 +987,9 @@ document.documentElement.style.setProperty("--hitY", `${Math.round(hitY)}px`);
 
     audioEl.pause();
     audioEl.currentTime = 0;
+
     audioStarted = false;
+    audioStartPerf = 0;
 
     // 프리롤
     running = true;
@@ -949,20 +998,21 @@ document.documentElement.style.setProperty("--hitY", `${Math.round(hitY)}px`);
     const COUNTDOWN_TOTAL_MS = 3150;
     goPerf = performance.now() + COUNTDOWN_TOTAL_MS;
 
-    updateMobileLayout();
+    updateHitbox();
     rafId = requestAnimationFrame(loop);
 
     await runCountdown(3);
-
     preRolling = false;
 
-    // ✅ 첫 시작 안정화: play 전에 load + 짧은 지연(가끔 안드로이드 웹뷰/브라우저에서 필요)
     try{
+      // ✅ 첫 스타트 안정화: 로드 + 아주 짧은 대기 + play
       audioEl.load();
-      await new Promise(r=>setTimeout(r, 40));
+      await new Promise(r=>setTimeout(r, 60));
       await audioEl.play();
+
       audioStarted = true;
-      audioStartPerf = performance.now();   // ✅ 여기 추가
+      audioStartPerf = performance.now();
+
     }catch(err){
       running = false;
       toast("오디오 재생 실패: 자동재생 제한일 수 있어요.");
@@ -987,12 +1037,17 @@ document.documentElement.style.setProperty("--hitY", `${Math.round(hitY)}px`);
   function loop(){
     if(!running) return;
 
+    updateHitbox();
+
     const tms = nowMs() - chart.offsetMs;
     const g = laneGeom();
     const laneW = g.w;
 
-    const appearFrom = tms - 160;
-    const appearTo = tms + chart.scrollMs + 360;
+    const appearFrom = tms - 200;
+    const appearTo = tms + chart.scrollMs + 420;
+
+    // ✅ 이번 프레임에 패드 자동 발광(inWindow) 리셋
+    touchPads.forEach(p => p.classList.remove("inWindow"));
 
     for(let i=0; i<chart.notes.length; i++){
       const n = chart.notes[i];
@@ -1012,12 +1067,21 @@ document.documentElement.style.setProperty("--hitY", `${Math.round(hitY)}px`);
       el.style.left = `${x + 8}px`;
       el.style.width = `${laneW - 16}px`;
       el.style.height = `${parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--noteH"))}px`;
+      // ✅ 노트 중앙이 히트 기준에 오도록
       const noteH = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--noteH")) || 34;
-el.style.top = `${y - (noteH / 2)}px`;   // ✅ 노트 중앙이 히트라인에 오도록
+      el.style.top = `${y - (noteH/2)}px`;
       el.style.display = "";
 
       const dt = n.t - tms;
-      el.classList.toggle("inWindow", Math.abs(dt) <= 140 && !n._hit);
+
+      const inWin = Math.abs(dt) <= 140 && !n._hit;
+      el.classList.toggle("inWindow", inWin);
+
+      // ✅ 노트가 판정 윈도우에 들어오면 해당 패드도 자동 발광
+      if(inWin){
+        const pad = touchPads[n.lane];
+        if(pad) pad.classList.add("inWindow");
+      }
 
       const prev = chart.notes[i-1];
       const next = chart.notes[i+1];
@@ -1048,26 +1112,24 @@ el.style.top = `${y - (noteH / 2)}px`;   // ✅ 노트 중앙이 히트라인에
       }
     }
 
-    // ✅ “시작하자마자 멈춤” 방지:
-    // 오디오가 실제로 play 된 뒤에만 종료 판정
+    // ✅ “시작하자마자 멈춤” 방지: 오디오가 실제로 재생된 뒤 + 0.6초 이후부터만 종료판정
     if(audioStarted){
-  const playedMs = performance.now() - audioStartPerf;
+      const playedMs = performance.now() - audioStartPerf;
 
-  // ✅ “재생이 막 시작된 구간(초반 0.4초)”에서는 종료 판정 금지
-  if(playedMs > 400){
-    const durMs = Number.isFinite(audioEl.duration) ? audioEl.duration * 1000 : Infinity;
+      if(playedMs > 600){
+        const durMs = Number.isFinite(audioEl.duration) ? audioEl.duration * 1000 : Infinity;
 
-    if(audioEl.ended || (durMs !== Infinity && (audioEl.currentTime * 1000) >= durMs - 5)){
-      stopGame(true);
-      return;
+        if(audioEl.ended || (durMs !== Infinity && (audioEl.currentTime * 1000) >= durMs - 5)){
+          stopGame(true);
+          return;
+        }
+
+        if(durMs === Infinity && tms > (chart.notes[chart.notes.length-1]?.t ?? 0) + 5000){
+          stopGame(true);
+          return;
+        }
+      }
     }
-
-    if(durMs === Infinity && tms > (chart.notes[chart.notes.length-1]?.t ?? 0) + 5000){
-      stopGame(true);
-      return;
-    }
-  }
-}
 
     rafId = requestAnimationFrame(loop);
   }
@@ -1159,7 +1221,7 @@ el.style.top = `${y - (noteH / 2)}px`;   // ✅ 노트 중앙이 히트라인에
   }
 
   // -----------------------------
-  // Mobile touch wiring
+  // Audio unlock
   // -----------------------------
   function unlockAudioOnce(){
     if(unlockAudioOnce._done) return;
@@ -1183,6 +1245,9 @@ el.style.top = `${y - (noteH / 2)}px`;   // ✅ 노트 중앙이 히트라인에
     }catch(e){}
   }
 
+  // -----------------------------
+  // Touch wiring
+  // -----------------------------
   touchPads.forEach(pad => {
     const lane = Number(pad.dataset.lane);
 
@@ -1223,9 +1288,8 @@ el.style.top = `${y - (noteH / 2)}px`;   // ✅ 노트 중앙이 히트라인에
   async function setSongById(id){
     const s = SONGS.find(x => x.id === id) || SONGS[0];
     currentSong = s;
-    setBackground(s.bg);
-    audioEl.src = s.audio;
-    audioEl.load();
+
+    applySongToUI();
 
     try{
       await loadChartFromFile(currentSong);
@@ -1233,12 +1297,13 @@ el.style.top = `${y - (noteH / 2)}px`;   // ✅ 노트 중앙이 히트라인에
     }catch(e){
       console.error(e);
       chart = defaultChartFor(currentSong);
-      applyChartToUI();
       toast("채보 파일을 찾지 못했어요 (charts 폴더/파일명 확인)");
     }
 
-    // ✅ 레이아웃 갱신(히트라인=패드 상단)
-    requestAnimationFrame(updateMobileLayout);
+    // 레이아웃 안정화 후 hitbox 계산
+    requestAnimationFrame(()=> {
+      updateHitbox();
+    });
   }
 
   songSelect.addEventListener("change", async () => {
@@ -1249,7 +1314,6 @@ el.style.top = `${y - (noteH / 2)}px`;   // ✅ 노트 중앙이 히트라인에
   startBtn.addEventListener("click", () => startGame());
   stopBtn.addEventListener("click", () => stopGame(false));
 
-  // Modal buttons
   closeModalBtn.addEventListener("click", closeModal);
   backToMenuBtn.addEventListener("click", closeModal);
   restartBtn.addEventListener("click", () => {
@@ -1263,21 +1327,18 @@ el.style.top = `${y - (noteH / 2)}px`;   // ✅ 노트 중앙이 히트라인에
     });
   });
 
-  // ended 이벤트도 audioStarted 이후만 의미있게
   audioEl.addEventListener("ended", () => {
-  const playedMs = performance.now() - audioStartPerf;
-  if(running && audioStarted && playedMs > 400) stopGame(true);
-});
+    const playedMs = performance.now() - audioStartPerf;
+    if(running && audioStarted && playedMs > 600) stopGame(true);
+  });
 
   // 초기화
   initSongSelect();
   await setSongById(currentSong.id);
   showCountdown(false);
-  updateMobileLayout();
 
-  // 주소창 접힘/펼침 등 리사이즈 때 재계산
   window.addEventListener("resize", () => {
-    updateMobileLayout();
+    updateHitbox();
   });
 
 })();
