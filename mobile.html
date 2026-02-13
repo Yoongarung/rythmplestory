@@ -20,7 +20,7 @@
       --warn: rgba(255, 216, 120, .95);
       --bad: rgba(255, 120, 120, .95);
 
-      --noteH: 18px;
+      --noteH: 34px;
       --laneGap: 10px;
 
       --padH: 140px;
@@ -619,6 +619,7 @@
   let goPerf = 0;
 
   let audioStarted = false;  // ✅ “시작하자마자 멈춤” 방지용
+  let audioStartPerf = 0;   // ✅ 실제 재생 시작 시각(Perf)
 
   const notePool = [];
   const activeNotesDOM = new Map();
@@ -811,7 +812,8 @@
       modalBody.innerHTML = `
         <div class="block">
           <p class="gradeBig">${grade}</p>
-          <div class="subInfo">정확도 <strong>${(acc*100).toFixed(1)}%</strong> · Max Combo <strong>${stats.maxCombo}</strong></div>
+          <div class="subInfo">정확도 <strong>${(acc*100).toFixed(1)}%</strong><br>
+Max Combo <strong>${stats.maxCombo}</strong></div>
           <div class="scoreSmall mono">${fmt(score)}</div>
           <div class="kvs">
             <div><span>노트 수</span><strong class="mono">${stats.total}</strong></div>
@@ -916,12 +918,10 @@
 
     // 화면 로딩 직후 레이아웃이 아직 0일 수 있어 한 번 더 예약
     const padTop = touchLayer.offsetTop;
-    if(!padTop || padTop < 50){
-      requestAnimationFrame(updateMobileLayout);
-      return;
-    }
-    document.documentElement.style.setProperty("--hitY", `${Math.round(padTop)}px`);
-  }
+const padH = touchLayer.clientHeight;          // ✅ 패드 높이(레이아웃 실제 값)
+const hitY = padTop + (padH * 0.5);            // ✅ 패드 중앙을 히트라인으로
+document.documentElement.style.setProperty("--hitY", `${Math.round(hitY)}px`);
+
 
   // -----------------------------
   // Gameplay
@@ -962,6 +962,7 @@
       await new Promise(r=>setTimeout(r, 40));
       await audioEl.play();
       audioStarted = true;
+      audioStartPerf = performance.now();   // ✅ 여기 추가
     }catch(err){
       running = false;
       toast("오디오 재생 실패: 자동재생 제한일 수 있어요.");
@@ -1011,7 +1012,8 @@
       el.style.left = `${x + 8}px`;
       el.style.width = `${laneW - 16}px`;
       el.style.height = `${parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--noteH"))}px`;
-      el.style.top = `${y}px`;
+      const noteH = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--noteH")) || 34;
+el.style.top = `${y - (noteH / 2)}px`;   // ✅ 노트 중앙이 히트라인에 오도록
       el.style.display = "";
 
       const dt = n.t - tms;
@@ -1049,19 +1051,23 @@
     // ✅ “시작하자마자 멈춤” 방지:
     // 오디오가 실제로 play 된 뒤에만 종료 판정
     if(audioStarted){
-      const durMs = Number.isFinite(audioEl.duration) ? audioEl.duration * 1000 : Infinity;
+  const playedMs = performance.now() - audioStartPerf;
 
-      if(audioEl.ended || (durMs !== Infinity && (audioEl.currentTime * 1000) >= durMs - 5)){
-        stopGame(true);
-        return;
-      }
+  // ✅ “재생이 막 시작된 구간(초반 0.4초)”에서는 종료 판정 금지
+  if(playedMs > 400){
+    const durMs = Number.isFinite(audioEl.duration) ? audioEl.duration * 1000 : Infinity;
 
-      // duration Infinity 환경 대비(스트리밍/미로딩 등)
-      if(durMs === Infinity && tms > (chart.notes[chart.notes.length-1]?.t ?? 0) + 5000){
-        stopGame(true);
-        return;
-      }
+    if(audioEl.ended || (durMs !== Infinity && (audioEl.currentTime * 1000) >= durMs - 5)){
+      stopGame(true);
+      return;
     }
+
+    if(durMs === Infinity && tms > (chart.notes[chart.notes.length-1]?.t ?? 0) + 5000){
+      stopGame(true);
+      return;
+    }
+  }
+}
 
     rafId = requestAnimationFrame(loop);
   }
@@ -1259,8 +1265,9 @@
 
   // ended 이벤트도 audioStarted 이후만 의미있게
   audioEl.addEventListener("ended", () => {
-    if(running && audioStarted) stopGame(true);
-  });
+  const playedMs = performance.now() - audioStartPerf;
+  if(running && audioStarted && playedMs > 400) stopGame(true);
+});
 
   // 초기화
   initSongSelect();
