@@ -791,16 +791,20 @@
   // ✅ Hitbox: "패드 상단 히트존"을 기준으로 노트가 내려오게
   // -----------------------------
   function updateHitbox(){
-    // 레이아웃이 아직 0일 수 있어서 방어
-    const top = touchLayer.offsetTop;
-    const h = touchLayer.clientHeight || parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--padH")) || 150;
+  if(!touchLayer) return;
 
-    // 히트존(발광) 높이의 "중앙"을 판정 기준으로 잡기
-    const glowH = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--hitGlowH")) || 34;
+  const top = touchLayer.offsetTop;
 
-      hitYpx = top + (glowH * 0.5);
-    }
-  }
+  // 히트존(패드 상단 발광 영역) 높이
+  const glowH = parseFloat(
+    getComputedStyle(document.documentElement)
+      .getPropertyValue("--hitGlowH")
+  ) || 34;
+
+  // ✅ 히트 기준 = 패드 상단 히트존 중앙
+  hitYpx = top + (glowH * 0.5);
+}
+
 
   function chartTimeToScreenY(noteTms, currentTms){
     const dt = noteTms - currentTms;
@@ -1248,11 +1252,6 @@ if(tms > lastNoteT + 3500){   // 3.5초 여유
   e.preventDefault();
   pad.setPointerCapture(e.pointerId);
 
-  // ✅ 게임 중엔 절대 unlock 하지 않기 (BGM pause 사고 방지)
-  if(!running && !audioStarted){
-    unlockAudioOnce();
-  }
-
   vibeTap();
   setLaneActive(lane, true);
   judgeLanePress(lane);
@@ -1308,7 +1307,10 @@ if(tms > lastNoteT + 3500){   // 3.5초 여유
     await setSongById(songSelect.value);
   });
 
-  startBtn.addEventListener("click", () => startGame());
+  startBtn.addEventListener("click", () => {
+  unlockAudioOnce();   // ✅ 게임 시작 전에만 언락
+  startGame();
+});
   stopBtn.addEventListener("click", () => stopGame(false));
 
   closeModalBtn.addEventListener("click", closeModal);
