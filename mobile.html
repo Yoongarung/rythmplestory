@@ -19,14 +19,14 @@
       --laneGap: 10px;
 
       /* ✅ 모바일 가시성: 노트를 크게 */
-      --noteH: 34px;
+      --noteH: 70px;
 
       /* ✅ 터치패드 */
       --padH: 150px;
       --padRadius: 18px;
 
       /* ✅ 판정 윈도우(패드 발광) 크기 */
-      --hitGlowH: 90px;      /* 패드 상단으로부터 발광 높이 */
+      --hitGlowH: 70px;      /* 패드 상단으로부터 발광 높이 */
       --hitGlowOpacity: .9;  /* 기본 발광 강도 */
 
       --miniHUDH: 44px;
@@ -342,6 +342,9 @@
       pointer-events:none;
       transition: opacity .08s ease, filter .08s ease;
       filter: saturate(1.2) brightness(1.05);
+      box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.10),
+    inset 0 -1px 0 rgba(255,255,255,.10);  /* ✅ 선이 아니라 밴드 경계감 */
     }
 
     /* ✅ 입력중 더 강한 발광 */
@@ -792,7 +795,7 @@
 
     // 히트존(발광) 높이의 "중앙"을 판정 기준으로 잡기
     const glowH = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--hitGlowH")) || 90;
-    const hitCenterFromTop = Math.min(glowH * 0.55, h * 0.55);
+    const hitCenterFromTop = Math.min(glowH * 0.5, h * 0.5);
 
     if(top && top > 20){
       hitYpx = top + hitCenterFromTop;
@@ -1113,23 +1116,13 @@
     }
 
     // ✅ “시작하자마자 멈춤” 방지: 오디오가 실제로 재생된 뒤 + 0.6초 이후부터만 종료판정
-    if(audioStarted){
-      const playedMs = performance.now() - audioStartPerf;
-
-      if(playedMs > 600){
-        const durMs = Number.isFinite(audioEl.duration) ? audioEl.duration * 1000 : Infinity;
-
-        if(audioEl.ended || (durMs !== Infinity && (audioEl.currentTime * 1000) >= durMs - 5)){
-          stopGame(true);
-          return;
-        }
-
-        if(durMs === Infinity && tms > (chart.notes[chart.notes.length-1]?.t ?? 0) + 5000){
-          stopGame(true);
-          return;
-        }
-      }
-    }
+    // ✅ 모바일 오디오 ended/duration 튐으로 인한 "시작 즉시 종료" 방지
+// ✅ 마지막 노트 이후 Nms 지나면 종료 (오디오가 잠깐 멈춰도 게임은 유지됨)
+const lastNoteT = chart?.notes?.length ? chart.notes[chart.notes.length - 1].t : 0;
+if(tms > lastNoteT + 3500){   // 3.5초 여유
+  stopGame(true);
+  return;
+}
 
     rafId = requestAnimationFrame(loop);
   }
@@ -1328,9 +1321,10 @@
   });
 
   audioEl.addEventListener("ended", () => {
-    const playedMs = performance.now() - audioStartPerf;
-    if(running && audioStarted && playedMs > 600) stopGame(true);
-  });
+  // ✅ 모바일에서 ended가 순간적으로 튀는 기기/브라우저가 있어서 무시
+  // 종료는 loop에서 "마지막 노트 시간" 기준으로만 처리
+});
+
 
   // 초기화
   initSongSelect();
@@ -1345,3 +1339,4 @@
 </script>
 </body>
 </html>
+
