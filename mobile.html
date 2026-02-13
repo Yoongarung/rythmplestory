@@ -2,17 +2,14 @@
 <html lang="ko">
 <head>
   <meta charset="utf-8" />
-  <!-- ✅ 모바일 세로모드 최적화 + 확대/축소 억제 -->
+  <!-- 모바일 세로모드 최적화 -->
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
-  <title>4키 리듬게임 (Mobile Portrait)</title>
+  <title>4키 리듬게임 (Mobile)</title>
+
   <style>
     :root{
-      /* 모바일은 화면 기준으로 동적으로 */
-      --hitY: 520px; /* JS가 실제값으로 덮어씀(기본값) */
-      --padH: 120px; /* 터치 패드 높이(= touchPad height와 맞춰야 함) */
-      --miniHUDH: 44px; /* 점수/콤보/정확도 영역 높이(대충) */
-      --noteH: 18px;
-      --laneGap: 10px;
+      /* ✅ hitY는 JS가 'px'로 주입 (문자열 vh 금지) */
+      --hitY: 520px;
 
       --glass: rgba(10,12,16,.62);
       --text: rgba(255,255,255,.92);
@@ -23,6 +20,11 @@
       --warn: rgba(255, 216, 120, .95);
       --bad: rgba(255, 120, 120, .95);
 
+      --noteH: 18px;
+      --laneGap: 10px;
+
+      --padH: 140px;
+      --miniHUDH: 44px;
       --hitBandH: 34px;
     }
 
@@ -34,7 +36,7 @@
       color: var(--text);
       font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Noto Sans KR", Arial;
       overscroll-behavior: none;
-      touch-action: none; /* 전체 페이지 스크롤 제스처 방지 */
+      touch-action: none;
     }
 
     .app{
@@ -108,11 +110,10 @@
       border-color: rgba(255,120,120,.35);
     }
 
-    /* 게임 영역: 화면 대부분을 laneBoard가 차지 */
     .stage{
       position:relative;
       z-index:2;
-      height: calc(100% - 64px); /* hud 대략값 */
+      height: calc(100% - 64px);
       padding-bottom: env(safe-area-inset-bottom);
       display:flex;
       align-items:stretch;
@@ -129,7 +130,6 @@
       overflow:hidden;
     }
 
-    /* 레인은 화면 너비에 맞춰 4등분 */
     .lanes{
       position:absolute; inset:0;
       display:flex;
@@ -137,6 +137,7 @@
       justify-content:space-between;
       gap: var(--laneGap);
       padding: 14px 12px 0;
+      pointer-events:none;
     }
     .lane{
       flex: 1 1 0;
@@ -169,22 +170,7 @@
     }
     .lane.lit::after{ opacity: .75; }
 
-    .hitBand{
-      position:absolute;
-      left:0; right:0;
-      top: calc(var(--hitY) - (var(--hitBandH) / 2));
-      height: var(--hitBandH);
-      background: linear-gradient(to bottom,
-        rgba(120,220,255,.00),
-        rgba(120,220,255,.12),
-        rgba(120,220,255,.00)
-      );
-      border-top: 1px solid rgba(255,255,255,.12);
-      border-bottom: 1px solid rgba(255,255,255,.10);
-      pointer-events:none;
-      z-index: 2;
-    }
-
+    /* ✅ 히트라인 = 터치패드 윗변 */
     .hitLine{
       position:absolute;
       left: 0; right: 0;
@@ -194,7 +180,25 @@
       box-shadow:
         0 0 0 1px rgba(0,0,0,.3),
         0 0 30px rgba(120,220,255,.35);
-      z-index: 3;
+      z-index: 6;
+      pointer-events:none;
+    }
+
+    /* ✅ 히트밴드(가이드) */
+    .hitBand{
+      position:absolute;
+      left:0; right:0;
+      top: calc(var(--hitY) - (var(--hitBandH) / 2));
+      height: var(--hitBandH);
+      background: linear-gradient(to bottom,
+        rgba(120,220,255,.00),
+        rgba(120,220,255,.14),
+        rgba(120,220,255,.00)
+      );
+      border-top: 1px solid rgba(255,255,255,.12);
+      border-bottom: 1px solid rgba(255,255,255,.10);
+      pointer-events:none;
+      z-index: 5;
     }
 
     .note{
@@ -204,7 +208,7 @@
       background: rgba(255,255,255,.90);
       box-shadow: 0 10px 24px rgba(0,0,0,.30);
       opacity:.97;
-      z-index: 5;
+      z-index: 8;
       transition: filter .06s ease, transform .06s ease, opacity .12s ease, background .08s ease;
       will-change: transform, opacity, filter;
     }
@@ -216,18 +220,15 @@
     }
     .note.hit{
       background: rgba(255,255,255,.98);
-      box-shadow: 0 18px 36px rgba(0,0,0,.38), 0 0 26px rgba(140,255,180,.22);
       transform: translateY(14px) scale(0.98);
       opacity: 0;
     }
     .note.missed{
       background: rgba(255,255,255,.35);
-      filter: blur(.2px) brightness(.85);
       opacity: 0;
       transform: translateY(10px);
     }
 
-    /* 중앙 판정 텍스트 */
     .centerUI{
       position:absolute;
       inset:0;
@@ -235,7 +236,7 @@
       align-items:center;
       justify-content:center;
       pointer-events:none;
-      z-index: 10;
+      z-index: 20;
     }
     .judgeBox{
       transform: translateY(-30px);
@@ -243,7 +244,7 @@
       min-width: 240px;
     }
     .judgeText{
-      font-size: 48px;
+      font-size: 46px;
       font-weight: 950;
       letter-spacing: .8px;
       text-shadow: 0 16px 60px rgba(0,0,0,.72);
@@ -271,7 +272,6 @@
       transform: translateY(0);
     }
 
-    /* 카운트다운 */
     .countdown{
       position:absolute;
       inset:0;
@@ -287,48 +287,22 @@
       transform: scale(.95);
       transition: opacity .12s ease, transform .12s ease;
       pointer-events:none;
-      z-index: 12;
+      z-index: 22;
     }
     .countdown.show{ opacity: 1; transform: scale(1); }
 
-    /* ✅ 두 손 엄지 터치 패드 */
-    .touchLayer{
-      position:absolute;
-      left:0; right:0;
-      bottom: calc(10px + env(safe-area-inset-bottom) + var(--miniHUDH) + 8px);
-      padding: 0 12px;
-      display:flex;
-      gap: var(--laneGap);
-      z-index: 20;
-      touch-action: none;
-      user-select:none;
-      -webkit-user-select:none;
-      -webkit-touch-callout:none;
-    }
-    .touchPad{
-      flex: 1 1 0;
-      height: 120px;            /* 엄지용 크게 */
-      border-radius: 16px;
-      background: rgba(255,255,255,.04);
-      border: 1px solid rgba(255,255,255,.10);
-      box-shadow: inset 0 0 0 1px rgba(0,0,0,.15);
-    }
-    .touchPad:active{
-      background: rgba(120,220,255,.10);
-      border-color: rgba(120,220,255,.35);
-    }
-
-    /* 하단에 작은 정보 */
+    /* ✅ 하단 미니 HUD: 맨 아래 */
     .miniHUD{
       position:absolute;
       left:12px;
       right:12px;
-      bottom: calc(10px + env(safe-area-inset-bottom)); /* 패드 위 */
-      z-index: 19;
+      bottom: calc(10px + env(safe-area-inset-bottom));
+      z-index: 18;
       display:flex;
       justify-content:space-between;
       gap:8px;
       pointer-events:none;
+      height: var(--miniHUDH);
     }
     .miniHUD .pill{
       flex: 1 1 0;
@@ -342,15 +316,167 @@
       display:flex;
       justify-content:space-between;
       gap:10px;
+      align-items:center;
     }
     .mono{ font-variant-numeric: tabular-nums; font-feature-settings:"tnum"; }
 
-    /* 노치 기기에서 살짝 여유 */
-    @supports (padding: env(safe-area-inset-top)) {
-      .hud { padding-top: calc(10px + env(safe-area-inset-top)); }
+    /* ✅ 히트박스 = 터치패드(레인별) : 밑에 크게 */
+    .touchLayer{
+      position:absolute;
+      left:0; right:0;
+      bottom: calc(10px + env(safe-area-inset-bottom) + var(--miniHUDH) + 8px);
+      padding: 0 12px;
+      display:flex;
+      gap: var(--laneGap);
+      z-index: 16;
+      touch-action: none;
+      user-select:none;
+      -webkit-user-select:none;
+      -webkit-touch-callout:none;
+    }
+    .touchPad{
+      flex: 1 1 0;
+      height: var(--padH);
+      border-radius: 18px;
+      background: rgba(255,255,255,.05);
+      border: 1px solid rgba(255,255,255,.12);
+      box-shadow:
+        inset 0 0 0 1px rgba(0,0,0,.18),
+        inset 0 -80px 140px rgba(0,0,0,.18);
+    }
+    .touchPad.active{
+      background: rgba(120,220,255,.12);
+      border-color: rgba(120,220,255,.40);
+      box-shadow:
+        inset 0 0 0 1px rgba(120,220,255,.20),
+        0 0 30px rgba(120,220,255,.18);
+    }
+    .touchLabelRow{
+      position:absolute;
+      left:12px; right:12px;
+      bottom: calc(10px + env(safe-area-inset-bottom) + var(--miniHUDH) + 8px + 10px);
+      z-index: 17;
+      display:flex;
+      gap: var(--laneGap);
+      pointer-events:none;
+      opacity:.85;
+    }
+    .touchLabel{
+      flex:1 1 0;
+      text-align:center;
+      font-weight:900;
+      letter-spacing:.7px;
+      color: rgba(255,255,255,.70);
+      text-shadow: 0 10px 30px rgba(0,0,0,.60);
+    }
+
+    /* -----------------------------
+       Result Modal (웹버전처럼)
+       ----------------------------- */
+    .modal{
+      position:absolute;
+      inset:0;
+      z-index: 50;
+      display:none;
+      align-items:center;
+      justify-content:center;
+      padding: 18px;
+    }
+    .modal.show{ display:flex; }
+    .modal .backdrop{
+      position:absolute; inset:0;
+      background: rgba(0,0,0,.65);
+      backdrop-filter: blur(6px);
+    }
+    .modal .panel{
+      position:relative;
+      width: min(680px, 92vw);
+      border-radius: 16px;
+      background: rgba(10,12,16,.86);
+      border: 1px solid rgba(255,255,255,.14);
+      box-shadow: 0 30px 120px rgba(0,0,0,.65);
+      overflow:hidden;
+    }
+    .panelHeader{
+      padding: 12px 14px;
+      border-bottom: 1px solid rgba(255,255,255,.10);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap: 10px;
+    }
+    .tabs{ display:flex; gap: 8px; flex-wrap:wrap; }
+    .tab{
+      padding: 8px 10px;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,.14);
+      background: rgba(0,0,0,.25);
+      font-size: 13px;
+      color: rgba(255,255,255,.8);
+      cursor:pointer;
+      user-select:none;
+      -webkit-user-select:none;
+    }
+    .tab.active{
+      border-color: rgba(120,220,255,.45);
+      background: rgba(120,220,255,.10);
+      color: rgba(255,255,255,.92);
+    }
+    .panelBody{
+      padding: 14px 14px 16px;
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .block{
+      border: 1px solid rgba(255,255,255,.10);
+      border-radius: 14px;
+      padding: 14px;
+      background: rgba(0,0,0,.22);
+    }
+    .gradeBig{
+      font-size: 72px;
+      font-weight: 980;
+      letter-spacing: 1px;
+      margin: 0;
+      line-height: .95;
+      text-shadow: 0 20px 80px rgba(0,0,0,.8);
+    }
+    .scoreSmall{
+      margin-top: 10px;
+      font-size: 26px;
+      font-weight: 900;
+      color: rgba(255,255,255,.88);
+    }
+    .subInfo{
+      margin-top: 8px;
+      font-size: 14px;
+      color: rgba(255,255,255,.78);
+    }
+    .kvs{
+      margin-top: 10px;
+      display:flex;
+      flex-direction:column;
+      gap: 6px;
+      color: rgba(255,255,255,.75);
+      font-size: 13px;
+    }
+    .kvs div{
+      display:flex;
+      justify-content:space-between;
+      gap: 10px;
+      font-variant-numeric: tabular-nums;
+    }
+    .panelFooter{
+      padding: 12px 14px 14px;
+      border-top: 1px solid rgba(255,255,255,.10);
+      display:flex;
+      justify-content:flex-end;
+      gap: 10px;
     }
   </style>
 </head>
+
 <body>
   <div class="app" id="app">
     <div class="bg" id="bg"></div>
@@ -387,14 +513,15 @@
 
         <div class="countdown" id="countdown">3</div>
 
-        <!-- ✅ 간단 HUD (패드 위) -->
-        <div class="miniHUD">
-          <div class="pill mono"><span>점수</span><strong id="scoreText">0</strong></div>
-          <div class="pill mono"><span>콤보</span><strong id="comboSideText">0</strong></div>
-          <div class="pill mono"><span>정확도</span><strong id="accText">—</strong></div>
+        <!-- ✅ 터치 라벨(직관) -->
+        <div class="touchLabelRow">
+          <div class="touchLabel">D</div>
+          <div class="touchLabel">F</div>
+          <div class="touchLabel">J</div>
+          <div class="touchLabel">K</div>
         </div>
 
-        <!-- ✅ 터치 패드 -->
+        <!-- ✅ 히트박스 = 터치패드 -->
         <div class="touchLayer" id="touchLayer">
           <div class="touchPad" data-lane="0"></div>
           <div class="touchPad" data-lane="1"></div>
@@ -402,9 +529,36 @@
           <div class="touchPad" data-lane="3"></div>
         </div>
 
+        <!-- ✅ 하단 정보: 맥스 콤보 표기 -->
+        <div class="miniHUD">
+          <div class="pill mono"><span>점수</span><strong id="scoreText">0</strong></div>
+          <div class="pill mono"><span>맥스 콤보</span><strong id="maxComboText">0</strong></div>
+          <div class="pill mono"><span>정확도</span><strong id="accText">—</strong></div>
+        </div>
+
         <audio id="audio" preload="auto" crossorigin="anonymous"></audio>
       </div>
     </div>
+
+    <!-- ✅ 결과 모달 -->
+    <div class="modal" id="modal">
+      <div class="backdrop"></div>
+      <div class="panel">
+        <div class="panelHeader">
+          <div class="tabs">
+            <div class="tab active" data-tab="result">결과</div>
+            <div class="tab" data-tab="detail">상세</div>
+          </div>
+          <button id="closeModalBtn">닫기</button>
+        </div>
+        <div class="panelBody" id="modalBody"></div>
+        <div class="panelFooter">
+          <button id="restartBtn" class="btnPrimary">같은 곡 다시</button>
+          <button id="backToMenuBtn">닫기</button>
+        </div>
+      </div>
+    </div>
+
   </div>
 
 <script>
@@ -426,13 +580,14 @@
   const startBtn = document.getElementById("startBtn");
   const stopBtn = document.getElementById("stopBtn");
 
-  const laneEls = Array.from(document.querySelectorAll(".lane"));
   const laneBoard = document.getElementById("laneBoard");
+  const lanesEl = document.getElementById("lanes");
+  const laneEls = Array.from(document.querySelectorAll(".lane"));
 
   const judgeTextEl = document.getElementById("judgeText");
   const comboTextEl = document.getElementById("comboText");
   const scoreTextEl = document.getElementById("scoreText");
-  const comboSideTextEl = document.getElementById("comboSideText");
+  const maxComboTextEl = document.getElementById("maxComboText");
   const accTextEl = document.getElementById("accText");
 
   const countdownEl = document.getElementById("countdown");
@@ -441,13 +596,19 @@
   const touchLayer = document.getElementById("touchLayer");
   const touchPads = touchLayer ? Array.from(touchLayer.querySelectorAll(".touchPad")) : [];
 
+  // Modal
+  const modal = document.getElementById("modal");
+  const modalBody = document.getElementById("modalBody");
+  const closeModalBtn = document.getElementById("closeModalBtn");
+  const restartBtn = document.getElementById("restartBtn");
+  const backToMenuBtn = document.getElementById("backToMenuBtn");
+  const tabEls = Array.from(document.querySelectorAll(".tab"));
+
   // -----------------------------
   // State
   // -----------------------------
   let currentSong = SONGS[0];
 
-  // chart format:
-  // { version, songId, audio, offsetMs, scrollMs, bpm, notes:[{t,lane}] }
   let chart = null;
   window.chart = null;
 
@@ -456,6 +617,8 @@
 
   let preRolling = false;
   let goPerf = 0;
+
+  let audioStarted = false;  // ✅ “시작하자마자 멈춤” 방지용
 
   const notePool = [];
   const activeNotesDOM = new Map();
@@ -481,7 +644,6 @@
 
   const hitLock = new Array(4).fill(0);
   const HIT_LOCK_MS = 45;
-
   let countdownTimer = 0;
 
   // -----------------------------
@@ -509,8 +671,7 @@
 
   function updateHUD(){
     scoreTextEl.textContent = fmt(stats.score);
-    comboSideTextEl.textContent = String(stats.combo);
-
+    maxComboTextEl.textContent = String(stats.maxCombo); // ✅ 맥스 콤보
     const acc = stats.total > 0 ? (stats.hit / stats.total) : 0;
     accTextEl.textContent = stats.total ? `${(acc*100).toFixed(1)}%` : "—";
   }
@@ -544,25 +705,22 @@
 
   function nowMs(){
     if(!running) return 0;
-
-    // 카운트다운 중: GO 시점 기준으로 음수 시간(프리롤)
     if(preRolling){
-      return (performance.now() - goPerf); // GO 전엔 음수, GO 순간 0
+      return (performance.now() - goPerf);
     }
     return (audioEl.currentTime * 1000);
   }
 
+  // ✅ 히트라인(=패드 top)까지 내려오는 방식
   function chartTimeToScreenY(noteTms, currentTms){
     const dt = noteTms - currentTms;
     const progress = 1 - (dt / chart.scrollMs);
     const yStart = -50;
-    const yEnd = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--hitY"));
+    const yEnd = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--hitY")); // px
     return yStart + (yEnd - yStart) * progress;
   }
 
-  function laneX(laneIndex){
-    // 모바일: lanes padding(12px) + gap + flex 폭으로 계산
-    const lanesEl = document.getElementById("lanes");
+  function laneGeom(){
     const style = getComputedStyle(lanesEl);
     const padL = parseFloat(style.paddingLeft) || 0;
     const padR = parseFloat(style.paddingRight) || 0;
@@ -570,26 +728,21 @@
 
     const boardW = laneBoard.clientWidth;
     const innerW = boardW - padL - padR;
-    const laneW = (innerW - gap*3) / 4;
+    const w = (innerW - gap*3) / 4;
 
-    return padL + laneIndex * (laneW + gap);
+    return { padL, gap, w };
   }
 
-  function laneWidth(){
-    const lanesEl = document.getElementById("lanes");
-    const style = getComputedStyle(lanesEl);
-    const padL = parseFloat(style.paddingLeft) || 0;
-    const padR = parseFloat(style.paddingRight) || 0;
-    const gap = parseFloat(style.gap) || 0;
-
-    const boardW = laneBoard.clientWidth;
-    const innerW = boardW - padL - padR;
-    return (innerW - gap*3) / 4;
+  function laneX(laneIndex){
+    const g = laneGeom();
+    return g.padL + laneIndex * (g.w + g.gap);
   }
 
   function setLaneActive(lane, on){
     const le = laneEls[lane];
     if(le) le.classList.toggle("lit", !!on);
+    const pad = touchPads[lane];
+    if(pad) pad.classList.toggle("active", !!on);
   }
 
   // -----------------------------
@@ -597,26 +750,18 @@
   // -----------------------------
   let lastVibeAt = 0;
   function vibe(pattern){
-    // iOS 등 미지원 환경 대비
     if(!navigator.vibrate) return;
     const now = performance.now();
-    // 너무 자주 울리면 불쾌해서 throttle
     if(now - lastVibeAt < 35) return;
     lastVibeAt = now;
     try{ navigator.vibrate(pattern); }catch(e){}
   }
-
-  function vibeTap(){
-    // 터치 자체 피드백: 아주 짧게
-    vibe(8);
-  }
-
+  function vibeTap(){ vibe(8); }
   function vibeJudge(judgeName){
-    // 판정별 차등 (취향에 따라 바꿔도 됨)
     if(judgeName === "Perfect") vibe([10]);
     else if(judgeName === "Great") vibe([8]);
     else if(judgeName === "Good") vibe([6]);
-    else vibe([12, 35, 12]); // Miss는 더 확실하게
+    else vibe([12, 35, 12]);
   }
 
   // -----------------------------
@@ -636,6 +781,64 @@
     showCountdown(true, "GO!");
     await new Promise(r => countdownTimer=setTimeout(r, 300));
     showCountdown(false);
+  }
+
+  // -----------------------------
+  // Result Modal
+  // -----------------------------
+  function openModal(tab="result"){
+    modal.classList.add("show");
+    setActiveTab(tab);
+    renderModal(tab);
+  }
+  function closeModal(){ modal.classList.remove("show"); }
+  function setActiveTab(tab){
+    tabEls.forEach(t => t.classList.toggle("active", t.dataset.tab === tab));
+  }
+  function gradeFromAcc(acc){
+    if(acc >= 0.98) return "S";
+    if(acc >= 0.95) return "A";
+    if(acc >= 0.90) return "B";
+    if(acc >= 0.80) return "C";
+    return "D";
+  }
+  function renderModal(tab){
+    const acc = stats.total ? (stats.hit / stats.total) : 0;
+    const grade = gradeFromAcc(acc);
+    const score = stats.score;
+
+    if(tab === "result"){
+      modalBody.innerHTML = `
+        <div class="block">
+          <p class="gradeBig">${grade}</p>
+          <div class="subInfo">정확도 <strong>${(acc*100).toFixed(1)}%</strong> · Max Combo <strong>${stats.maxCombo}</strong></div>
+          <div class="scoreSmall mono">${fmt(score)}</div>
+          <div class="kvs">
+            <div><span>노트 수</span><strong class="mono">${stats.total}</strong></div>
+            <div><span>곡</span><strong>${currentSong.name}</strong></div>
+            <div><span>설정</span><strong class="mono">BPM ${chart.bpm} · OFF ${chart.offsetMs} · SCR ${chart.scrollMs}</strong></div>
+          </div>
+        </div>
+        <div class="block">
+          <div class="kvs">
+            <div><span>Perfect</span><strong class="mono">${stats.perfect}</strong></div>
+            <div><span>Great</span><strong class="mono">${stats.great}</strong></div>
+            <div><span>Good</span><strong class="mono">${stats.good}</strong></div>
+            <div><span>Miss</span><strong class="mono">${stats.miss}</strong></div>
+          </div>
+        </div>
+      `;
+    }else{
+      modalBody.innerHTML = `
+        <div class="block" style="grid-column:1 / -1;">
+          <div class="kvs">
+            <div><span>점수</span><strong>Perfect 1000 / Great 700 / Good 400</strong></div>
+            <div><span>콤보</span><strong>combo × 0.4 (최대 1.4배)</strong></div>
+            <div><span>모바일</span><strong>히트라인 = 패드 상단</strong></div>
+          </div>
+        </div>
+      `;
+    }
   }
 
   // -----------------------------
@@ -671,19 +874,14 @@
       .sort((a,b)=>a.t-b.t || a.lane-b.lane)
       : [];
 
-    safe.notes.forEach(n => {
-      delete n._hit;
-      delete n._hitStart;
-      delete n._holding;
-      delete n._releaseT;
-    });
-
+    safe.notes.forEach(n => { delete n._hit; });
     return safe;
   }
 
   function applyChartToUI(){
     setBackground(currentSong.bg);
     audioEl.src = currentSong.audio;
+    audioEl.load(); // ✅ 미리 로드해서 “처음 시작하면 멈춤” 케이스 줄이기
     updateHUD();
   }
 
@@ -698,7 +896,7 @@
   }
 
   // -----------------------------
-  // Toast (judgeText 재활용)
+  // Toast
   // -----------------------------
   let toastTimer = 0;
   function toast(msg){
@@ -710,36 +908,60 @@
   }
 
   // -----------------------------
+  // ✅ Layout: hitLine = touchPad top
+  // -----------------------------
+  function updateMobileLayout(){
+    // touchLayer의 top이 곧 히트라인 위치(패드 상단)
+    if(!touchLayer) return;
+
+    // 화면 로딩 직후 레이아웃이 아직 0일 수 있어 한 번 더 예약
+    const padTop = touchLayer.offsetTop;
+    if(!padTop || padTop < 50){
+      requestAnimationFrame(updateMobileLayout);
+      return;
+    }
+    document.documentElement.style.setProperty("--hitY", `${Math.round(padTop)}px`);
+  }
+
+  // -----------------------------
   // Gameplay
   // -----------------------------
   async function startGame(){
     if(running) return;
     if(!chart) chart = defaultChartFor(currentSong);
-
     if(!chart.notes || chart.notes.length === 0){
       toast("채보가 비어있어요. charts/*.json 확인!");
       return;
     }
 
+    closeModal();
     resetStats();
     clearNotesDOM();
 
     audioEl.pause();
     audioEl.currentTime = 0;
+    audioStarted = false;
 
     // 프리롤
     running = true;
     preRolling = true;
 
-    const COUNTDOWN_TOTAL_MS = 3150; // 3*950 + 300
+    const COUNTDOWN_TOTAL_MS = 3150;
     goPerf = performance.now() + COUNTDOWN_TOTAL_MS;
 
+    updateMobileLayout();
     rafId = requestAnimationFrame(loop);
+
     await runCountdown(3);
+
     preRolling = false;
 
+    // ✅ 첫 시작 안정화: play 전에 load + 짧은 지연(가끔 안드로이드 웹뷰/브라우저에서 필요)
     try{
+      audioEl.load();
+      await new Promise(r=>setTimeout(r, 40));
       await audioEl.play();
+      audioStarted = true;
     }catch(err){
       running = false;
       toast("오디오 재생 실패: 자동재생 제한일 수 있어요.");
@@ -749,21 +971,24 @@
     rafId = requestAnimationFrame(loop);
   }
 
-  function stopGame(){
-    if(!running) return;
+  function stopGame(showResult=false){
+    if(!running && !showResult) return;
     running = false;
     cancelAnimationFrame(rafId);
     rafId = 0;
 
     audioEl.pause();
     for(let i=0;i<4;i++) setLaneActive(i,false);
+
+    if(showResult) openModal("result");
   }
 
   function loop(){
     if(!running) return;
 
     const tms = nowMs() - chart.offsetMs;
-    const w = laneWidth();
+    const g = laneGeom();
+    const laneW = g.w;
 
     const appearFrom = tms - 160;
     const appearTo = tms + chart.scrollMs + 360;
@@ -784,7 +1009,7 @@
       const x = laneX(n.lane);
 
       el.style.left = `${x + 8}px`;
-      el.style.width = `${w - 16}px`;
+      el.style.width = `${laneW - 16}px`;
       el.style.height = `${parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--noteH"))}px`;
       el.style.top = `${y}px`;
       el.style.display = "";
@@ -821,16 +1046,21 @@
       }
     }
 
-    const durMs = Number.isFinite(audioEl.duration) ? audioEl.duration * 1000 : Infinity;
-    if(audioEl.ended || (durMs !== Infinity && (audioEl.currentTime * 1000) >= durMs - 5)){
-      stopGame();
-      toast("끝!");
-      return;
-    }
-    if(durMs === Infinity && tms > (chart.notes[chart.notes.length-1]?.t ?? 0) + 5000){
-      stopGame();
-      toast("끝!");
-      return;
+    // ✅ “시작하자마자 멈춤” 방지:
+    // 오디오가 실제로 play 된 뒤에만 종료 판정
+    if(audioStarted){
+      const durMs = Number.isFinite(audioEl.duration) ? audioEl.duration * 1000 : Infinity;
+
+      if(audioEl.ended || (durMs !== Infinity && (audioEl.currentTime * 1000) >= durMs - 5)){
+        stopGame(true);
+        return;
+      }
+
+      // duration Infinity 환경 대비(스트리밍/미로딩 등)
+      if(durMs === Infinity && tms > (chart.notes[chart.notes.length-1]?.t ?? 0) + 5000){
+        stopGame(true);
+        return;
+      }
     }
 
     rafId = requestAnimationFrame(loop);
@@ -849,7 +1079,7 @@
       if(judge.name === "Perfect") stats.perfect++;
       else if(judge.name === "Great") stats.great++;
       else if(judge.name === "Good") stats.good++;
-    } else {
+    }else{
       stats.miss++;
       stats.combo = 0;
     }
@@ -929,7 +1159,6 @@
     if(unlockAudioOnce._done) return;
     unlockAudioOnce._done = true;
 
-    // 첫 제스처에서 오디오 재생 가능 상태로 만들기 시도
     try{
       const wasMuted = audioEl.muted;
       audioEl.muted = true;
@@ -990,6 +1219,7 @@
     currentSong = s;
     setBackground(s.bg);
     audioEl.src = s.audio;
+    audioEl.load();
 
     try{
       await loadChartFromFile(currentSong);
@@ -1000,64 +1230,48 @@
       applyChartToUI();
       toast("채보 파일을 찾지 못했어요 (charts 폴더/파일명 확인)");
     }
+
+    // ✅ 레이아웃 갱신(히트라인=패드 상단)
+    requestAnimationFrame(updateMobileLayout);
   }
 
   songSelect.addEventListener("change", async () => {
-    stopGame();
+    stopGame(false);
     await setSongById(songSelect.value);
   });
 
   startBtn.addEventListener("click", () => startGame());
-  stopBtn.addEventListener("click", () => stopGame());
+  stopBtn.addEventListener("click", () => stopGame(false));
 
-  // 키보드도 “혹시” 쓰고 싶으면 대응(태블릿 등)
-  const KEYMAP = { "KeyD": 0, "KeyF": 1, "KeyJ": 2, "KeyK": 3 };
-  window.addEventListener("keydown", (e) => {
-    const lane = KEYMAP[e.code];
-    if(lane === undefined) return;
-    setLaneActive(lane, true);
-    judgeLanePress(lane);
+  // Modal buttons
+  closeModalBtn.addEventListener("click", closeModal);
+  backToMenuBtn.addEventListener("click", closeModal);
+  restartBtn.addEventListener("click", () => {
+    closeModal();
+    startGame();
   });
-  window.addEventListener("keyup", (e) => {
-    const lane = KEYMAP[e.code];
-    if(lane === undefined) return;
-    setLaneActive(lane, false);
+  tabEls.forEach(t => {
+    t.addEventListener("click", () => {
+      setActiveTab(t.dataset.tab);
+      renderModal(t.dataset.tab);
+    });
+  });
+
+  // ended 이벤트도 audioStarted 이후만 의미있게
+  audioEl.addEventListener("ended", () => {
+    if(running && audioStarted) stopGame(true);
   });
 
   // 초기화
   initSongSelect();
   await setSongById(currentSong.id);
   showCountdown(false);
-
-function updateMobileLayout(){
-  // laneBoard 내부에서 hitLine이 찍히는 위치를 "px"로 계산
-  const boardH = laneBoard.clientHeight;
-
-  // touchPad 영역(패드 높이) + miniHUD(하단 점수줄) + 여백만큼은 아래에 남겨두고
-  // hitLine이 패드 바로 위쯤 오도록 설정
-  const padH = 120;     // touchPad height
-  const miniHUDH = 44;  // miniHUD 높이(대략)
-  const margin = 28;    // 패드-히트라인 간격(취향)
-
-  const hitY = Math.max(220, boardH - (padH + miniHUDH + margin + 18));
-
-  // ✅ CSS 변수에 px로 주입 (이제 parseFloat해도 제대로 px값)
-  document.documentElement.style.setProperty("--hitY", `${Math.round(hitY)}px`);
-}
-
-// 로드 직후 + 리사이즈(주소창 접힘/펼침 포함) 때 재계산
-updateMobileLayout();
-window.addEventListener("resize", () => {
   updateMobileLayout();
-});
 
-  // iOS에서 주소창/툴바로 인해 vh가 튀는 문제 완화
-  function fixVH(){
-    const vh = window.innerHeight * 0.01;
-    document.documentElement.style.setProperty('--vh', `${vh}px`);
-  }
-  fixVH();
-  window.addEventListener("resize", fixVH);
+  // 주소창 접힘/펼침 등 리사이즈 때 재계산
+  window.addEventListener("resize", () => {
+    updateMobileLayout();
+  });
 
 })();
 </script>
