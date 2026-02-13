@@ -8,7 +8,9 @@
   <style>
     :root{
       /* 모바일은 화면 기준으로 동적으로 */
-      --hitY: 66vh;            /* 세로모드에서 히트라인 위치 */
+      --hitY: 520px; /* JS가 실제값으로 덮어씀(기본값) */
+      --padH: 120px; /* 터치 패드 높이(= touchPad height와 맞춰야 함) */
+      --miniHUDH: 44px; /* 점수/콤보/정확도 영역 높이(대충) */
       --noteH: 18px;
       --laneGap: 10px;
 
@@ -293,7 +295,7 @@
     .touchLayer{
       position:absolute;
       left:0; right:0;
-      bottom: calc(10px + env(safe-area-inset-bottom));
+      bottom: calc(10px + env(safe-area-inset-bottom) + var(--miniHUDH) + 8px);
       padding: 0 12px;
       display:flex;
       gap: var(--laneGap);
@@ -321,7 +323,7 @@
       position:absolute;
       left:12px;
       right:12px;
-      bottom: calc(140px + env(safe-area-inset-bottom)); /* 패드 위 */
+      bottom: calc(10px + env(safe-area-inset-bottom)); /* 패드 위 */
       z-index: 19;
       display:flex;
       justify-content:space-between;
@@ -1026,6 +1028,28 @@
   initSongSelect();
   await setSongById(currentSong.id);
   showCountdown(false);
+
+function updateMobileLayout(){
+  // laneBoard 내부에서 hitLine이 찍히는 위치를 "px"로 계산
+  const boardH = laneBoard.clientHeight;
+
+  // touchPad 영역(패드 높이) + miniHUD(하단 점수줄) + 여백만큼은 아래에 남겨두고
+  // hitLine이 패드 바로 위쯤 오도록 설정
+  const padH = 120;     // touchPad height
+  const miniHUDH = 44;  // miniHUD 높이(대략)
+  const margin = 28;    // 패드-히트라인 간격(취향)
+
+  const hitY = Math.max(220, boardH - (padH + miniHUDH + margin + 18));
+
+  // ✅ CSS 변수에 px로 주입 (이제 parseFloat해도 제대로 px값)
+  document.documentElement.style.setProperty("--hitY", `${Math.round(hitY)}px`);
+}
+
+// 로드 직후 + 리사이즈(주소창 접힘/펼침 포함) 때 재계산
+updateMobileLayout();
+window.addEventListener("resize", () => {
+  updateMobileLayout();
+});
 
   // iOS에서 주소창/툴바로 인해 vh가 튀는 문제 완화
   function fixVH(){
