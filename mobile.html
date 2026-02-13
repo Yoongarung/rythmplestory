@@ -19,14 +19,14 @@
       --laneGap: 10px;
 
       /* ✅ 모바일 가시성: 노트를 크게 */
-      --noteH: 70px;
+      --noteH: 28px;
 
       /* ✅ 터치패드 */
-      --padH: 150px;
+      --padH: 110px;
       --padRadius: 18px;
 
       /* ✅ 판정 윈도우(패드 발광) 크기 */
-      --hitGlowH: 70px;      /* 패드 상단으로부터 발광 높이 */
+      --hitGlowH: 34px;      /* 패드 상단으로부터 발광 높이 */
       --hitGlowOpacity: .9;  /* 기본 발광 강도 */
 
       --miniHUDH: 44px;
@@ -342,9 +342,11 @@
       pointer-events:none;
       transition: opacity .08s ease, filter .08s ease;
       filter: saturate(1.2) brightness(1.05);
-      box-shadow:
+        /* 기존 gradient 유지 */
+  border-bottom: 1px solid rgba(255,255,255,.14); /* ✅ 히트존 끝 경계(선이 아니라 ‘밴드 끝’) */
+  box-shadow:
     inset 0 1px 0 rgba(255,255,255,.10),
-    inset 0 -1px 0 rgba(255,255,255,.10);  /* ✅ 선이 아니라 밴드 경계감 */
+    0 10px 26px rgba(120,220,255,.18);           /* ✅ 밴드가 앞으로 튀어나와 보이게 */
     }
 
     /* ✅ 입력중 더 강한 발광 */
@@ -794,11 +796,9 @@
     const h = touchLayer.clientHeight || parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--padH")) || 150;
 
     // 히트존(발광) 높이의 "중앙"을 판정 기준으로 잡기
-    const glowH = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--hitGlowH")) || 90;
-    const hitCenterFromTop = Math.min(glowH * 0.5, h * 0.5);
+    const glowH = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--hitGlowH")) || 34;
 
-    if(top && top > 20){
-      hitYpx = top + hitCenterFromTop;
+      hitYpx = top + (glowH * 0.5);
     }
   }
 
@@ -1245,14 +1245,18 @@ if(tms > lastNoteT + 3500){   // 3.5초 여유
     const lane = Number(pad.dataset.lane);
 
     pad.addEventListener("pointerdown", (e) => {
-      e.preventDefault();
-      pad.setPointerCapture(e.pointerId);
+  e.preventDefault();
+  pad.setPointerCapture(e.pointerId);
 
-      unlockAudioOnce();
-      vibeTap();
-      setLaneActive(lane, true);
-      judgeLanePress(lane);
-    }, { passive:false });
+  // ✅ 게임 중엔 절대 unlock 하지 않기 (BGM pause 사고 방지)
+  if(!running && !audioStarted){
+    unlockAudioOnce();
+  }
+
+  vibeTap();
+  setLaneActive(lane, true);
+  judgeLanePress(lane);
+}, { passive:false });
 
     pad.addEventListener("pointerup", (e) => {
       e.preventDefault();
@@ -1339,4 +1343,5 @@ if(tms > lastNoteT + 3500){   // 3.5초 여유
 </script>
 </body>
 </html>
+
 
